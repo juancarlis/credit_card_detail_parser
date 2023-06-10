@@ -1,2 +1,2 @@
-# mobills_credit_pdf_to_xl
-Turn PDF credit card bill to xl.
+# Credit Card Detail Parser
+Turn PDF credit card bill to csv o xlsx formats.
