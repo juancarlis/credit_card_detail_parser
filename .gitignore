@@ -130,3 +130,7 @@ dmypy.json
 
 # data
 src/data/*
+Data/*
+data/*
+.notebooks/*
+notebooks/*
