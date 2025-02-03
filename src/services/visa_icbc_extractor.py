@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import List, Tuple
+from typing import List
 from pathlib import Path
 
 import pandas as pd
@@ -11,9 +11,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def main():
-    file_name = "eresumen_visa_202406"
-    raw_file_path = f"Data/raw/{file_name}.pdf"
+def extractor(file_name: str) -> None:
+    raw_file_path = f"data/raw/{file_name}.pdf"
 
     # Extracting raw data from PDF
     text: List[str] = extract_text_from_pdf(file_path=raw_file_path)
@@ -27,16 +26,16 @@ def main():
     output = extract_data(text=text)
 
     # Making sure processed path exists
-    processed_path: Path = Path("Data/outputs")
+    processed_path: Path = Path("data/processed")
     ensure_directory_exists(directory=processed_path)
 
     # Creating export routes
     csv_file_path = processed_path / f"processed_{file_name}.csv"
-    xl_file_path = processed_path / f"processed_{file_name}.xlsx"
+    # xl_file_path = processed_path / f"processed_{file_name}.xlsx"
 
     # Exporting data
     save_to_csv(df=output, file_path=csv_file_path)
-    save_to_excel(df=output, file_path=xl_file_path)
+    # save_to_excel(df=output, file_path=xl_file_path)
 
 
 def extract_text_from_pdf(file_path: str) -> List[str]:
@@ -53,10 +52,10 @@ def find_valuable_data_interval(text: List[str]) -> List[str]:
     logger.info("Excluding not useful data.")
     start_line, end_line = 0, 0
     for line_nb, line in enumerate(text):
-        if re.search("BONIFICACION ACUERDOS GLOBALES", line) != None:
+        if re.search("BONIFICACION ACUERDOS GLOBALES", line) is not None:
             start_line = line_nb
 
-        if re.search("PAGO MINIMO", line) != None:
+        if re.search("PAGO MINIMO", line) is not None:
             end_line = line_nb
 
     return text[start_line:end_line]
@@ -65,13 +64,13 @@ def find_valuable_data_interval(text: List[str]) -> List[str]:
 def extract_data(text: List[str]) -> pd.DataFrame:
     """
     Extracts dates, descriptions and values from the given text
-    and returns them as dataframe.
+    and returns them as a DataFrame with separate columns for ARS and USD.
 
     Parameters:
     - text: List[str], The text lines to process
 
     Returns:
-    - pd.Dataframe, A DataFrame with the extracted data
+    - pd.DataFrame, A DataFrame with the extracted data
     """
 
     logger.info("Extracting data")
@@ -96,7 +95,6 @@ def extract_data(text: List[str]) -> pd.DataFrame:
                 # Extract date
                 date = date_match.group()
 
-                # Si el último valor es "0,00", usa el penúltimo valor
                 # Conditionally extract value and description
                 value = (
                     value_matches[-2]
@@ -127,14 +125,13 @@ def extract_data(text: List[str]) -> pd.DataFrame:
         .astype(float)
     )
 
-    # Negate the values that do not correspond to 'BONIFICACION ACUERDOS GLOBALES'
-    devolucion_de_cargos_mask = data["Descripcion"].str.contains(
-        "BONIFICACION ACUERDOS GLOBALES", case=False, na=False
+    # Separate ARS and USD values
+    data["Valores_ARS"] = data["Valores"].where(
+        ~data["Descripcion"].str.contains("USD"), 0
     )
-
-    data.loc[~devolucion_de_cargos_mask, "Valores"] = data.loc[
-        ~devolucion_de_cargos_mask, "Valores"
-    ].apply(lambda r: r * -1)
+    data["Valores_USD"] = data["Valores"].where(
+        data["Descripcion"].str.contains("USD"), 0
+    )
 
     return data
 
@@ -178,4 +175,5 @@ def _remove_duplicates_from_line(line: str) -> str:
 
 
 if __name__ == "__main__":
-    main()
+    file_name = "eresumen_visa_202412"
+    extractor(file_name)
